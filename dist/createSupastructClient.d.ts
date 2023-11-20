@@ -1,5 +1,5 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import type { SupastructClient } from './types';
+import { SupabaseClient } from "@supabase/supabase-js";
+import type { SupastructClient } from "./types";
 /**
  * createSupastructClient() wraps a regular Supabase.js client with a Proxy, and
  * intercepts its method calls so it can save information about the query being
@@ -20,4 +20,14 @@ import type { SupastructClient } from './types';
  * implemented this example as a separate package called `@supastruct/react-query`.
  */
 export declare function supastructClientFactory(supabaseClient: SupabaseClient): () => SupastructClient;
+/**
+ * TODO: think about how to implement hook system for Supabase-js client.
+ * For example, user can pass an object to createSupastructClient with callback methods:
+ * `onUpdate`, `onInsert`, `onUpsert`, `onSelect`, `onDelete` (and maybe `onError`,
+ * `onSuccess`, `onSettled`?).. these methods would be called within the `then` method
+ * (i.e. post-query execution), using the queryMeta to determine which ones to call, and
+ * passing the queryMeta into the callbacks... so user can do things like "on update of
+ * `todos`, if the update data includes `fieldX` with value `Y`, perform some side-effect
+ * such as creating records in another table."
+ */
 export declare function createSupastructClient(supabaseClient: SupabaseClient): SupastructClient;
