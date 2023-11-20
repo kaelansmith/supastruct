@@ -1,9 +1,9 @@
-import { QueryMeta, SupastructFilterBuilder } from './types';
+import { QueryMeta, SupastructFilterBuilder } from "./types";
 import {
   PostgrestQueryBuilder,
   PostgrestFilterBuilder,
-  PostgrestBuilder
-} from '@supabase/postgrest-js';
+  PostgrestBuilder,
+} from "@supabase/postgrest-js";
 
 export const getMetaFromQuery = (
   query:
