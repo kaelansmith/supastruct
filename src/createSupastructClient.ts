@@ -1,12 +1,12 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from "@supabase/supabase-js";
 import {
   PostgrestFilterBuilder,
   PostgrestQueryBuilder,
   PostgrestTransformBuilder,
-  PostgrestBuilder
-} from '@supabase/postgrest-js';
-import type { MutationMethods, QueryMeta, SupastructClient } from './types';
-import { filterMethods, modifierMethods, mutationMethods } from './constants';
+  PostgrestBuilder,
+} from "@supabase/postgrest-js";
+import type { MutationMethods, QueryMeta, SupastructClient } from "./types";
+import { filterMethods, modifierMethods, mutationMethods } from "./constants";
 
 /**
  * createSupastructClient() wraps a regular Supabase.js client with a Proxy, and
@@ -34,11 +34,21 @@ export function supastructClientFactory(
   return () => createSupastructClient(supabaseClient);
 }
 
+/**
+ * TODO: think about how to implement hook system for Supabase-js client.
+ * For example, user can pass an object to createSupastructClient with callback methods:
+ * `onUpdate`, `onInsert`, `onUpsert`, `onSelect`, `onDelete` (and maybe `onError`,
+ * `onSuccess`, `onSettled`?).. these methods would be called within the `then` method
+ * (i.e. post-query execution), using the queryMeta to determine which ones to call, and
+ * passing the queryMeta into the callbacks... so user can do things like "on update of
+ * `todos`, if the update data includes `fieldX` with value `Y`, perform some side-effect
+ * such as creating records in another table."
+ */
 export function createSupastructClient(
   supabaseClient: SupabaseClient
 ): SupastructClient {
   const queryMeta: QueryMeta = {
-    from: ''
+    from: "",
   };
 
   const client = supabaseClient;
@@ -46,16 +56,16 @@ export function createSupastructClient(
   const createProxy = <T extends Record<string, any>>(target: T): T => {
     return new Proxy(target, {
       get(target, method: string, receiver) {
-        if (method === 'getQueryMeta') {
+        if (method === "getQueryMeta") {
           return () => queryMeta;
         }
 
-        if (method === 'getSupabaseClient') {
+        if (method === "getSupabaseClient") {
           return () => client;
         }
 
         // intercept the query execution's response to inject `queryMeta`
-        if (method === 'then') {
+        if (method === "then") {
           // Intercept 'then' method
           return (onfulfilled: any, onrejected: any) => {
             return Reflect.get(target, method, receiver).call(
@@ -79,7 +89,7 @@ export function createSupastructClient(
 
           if (isMutation) {
             queryMeta.mutation = method as MutationMethods;
-            if (method == 'delete') queryMeta.mutationOptions = methodArgs;
+            if (method == "delete") queryMeta.mutationOptions = methodArgs;
             else {
               queryMeta.values = args[0];
               queryMeta.mutationOptions =
@@ -102,12 +112,11 @@ export function createSupastructClient(
               ? (queryMeta.modifiers as any)
               : (queryMeta as QueryMeta);
 
-            // @ts-ignore -- TS isn't smart enough to see that we ensure queryMeta.filters and queryMeta.modifiers aren't undefined above
             let existingMethodMeta = meta[method];
 
             if (!methodArgs) {
-              if (method == 'select') {
-                meta[method] = '*';
+              if (method == "select") {
+                meta[method] = "*";
               } else {
                 // invoked methods that don't have any args, and that don't match special cases above, will be saved to meta with value of "true", simply indicating that this method was called
                 meta[method] = true;
@@ -154,7 +163,7 @@ export function createSupastructClient(
 
           return createProxy(receiver);
         };
-      }
+      },
     });
   };
 
