@@ -1,6 +1,6 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import { QueryMeta, SupastructResult } from './types';
-import { mutationMethods } from './constants';
+import { SupabaseClient } from "@supabase/supabase-js";
+import { QueryMeta, SupastructResult } from "./types";
+import { mutationMethods } from "./constants";
 
 export function supastruct(
   client: SupabaseClient,
@@ -12,23 +12,18 @@ export function supastruct(
   try {
     if (!client)
       throw new Error(
-        'A valid Supabase client was not provided via the 1st argument.'
+        "A valid Supabase client was not provided via the 1st argument."
       );
-
-    // if (relatedTo == 'new')
-    //   throw new Error(
-    //     "Can't fetch rows that are related to a non-existant row."
-    //   );
 
     //* === SET TABLE
     let query: any = client.from(from); // assert 'any' to make TS happy
 
     //* === SET MUTATION (optional; eg. update(), insert(), upsert(), delete())
     if (mutation && mutationMethods.includes(mutation)) {
-      if (mutation == 'delete') {
+      if (mutation == "delete") {
         query = query.delete(mutationOptions);
       } else {
-        const method = mutation as 'update' | 'insert' | 'upsert'; // type assertion to make TS happy
+        const method = mutation as "update" | "insert" | "upsert"; // type assertion to make TS happy
         query = query[method]?.(values, mutationOptions);
       }
     }
@@ -40,11 +35,11 @@ export function supastruct(
         query = query.select(
           ...(Array.isArray(selectArgs) ? selectArgs : [selectArgs])
         );
-      else query = query.select('*');
+      else query = query.select("*");
     }
 
     //* === APPEND FILTER METHODS ===
-    if (filters && mutation != 'insert') {
+    if (filters && mutation != "insert") {
       // note: filters don't work on "insert" mutations
       Object.entries(filters)?.forEach(([method, args]) => {
         /**
