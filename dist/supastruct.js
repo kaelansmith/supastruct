@@ -7,16 +7,12 @@ function supastruct(client, queryMeta) {
     let { mutation, values, mutationOptions, from, filters, modifiers } = queryMeta;
     try {
         if (!client)
-            throw new Error('A valid Supabase client was not provided via the 1st argument.');
-        // if (relatedTo == 'new')
-        //   throw new Error(
-        //     "Can't fetch rows that are related to a non-existant row."
-        //   );
+            throw new Error("A valid Supabase client was not provided via the 1st argument.");
         //* === SET TABLE
         let query = client.from(from); // assert 'any' to make TS happy
         //* === SET MUTATION (optional; eg. update(), insert(), upsert(), delete())
         if (mutation && constants_1.mutationMethods.includes(mutation)) {
-            if (mutation == 'delete') {
+            if (mutation == "delete") {
                 query = query.delete(mutationOptions);
             }
             else {
@@ -30,10 +26,10 @@ function supastruct(client, queryMeta) {
             if (selectArgs)
                 query = query.select(...(Array.isArray(selectArgs) ? selectArgs : [selectArgs]));
             else
-                query = query.select('*');
+                query = query.select("*");
         }
         //* === APPEND FILTER METHODS ===
-        if (filters && mutation != 'insert') {
+        if (filters && mutation != "insert") {
             // note: filters don't work on "insert" mutations
             (_b = Object.entries(filters)) === null || _b === void 0 ? void 0 : _b.forEach(([method, args]) => {
                 var _a;

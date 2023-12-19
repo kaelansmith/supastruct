@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSupastructClient = exports.supastructClientFactory = void 0;
+exports.createSupabaseProxyClient = void 0;
 const postgrest_js_1 = require("@supabase/postgrest-js");
 const constants_1 = require("./constants");
 /**
- * createSupastructClient() wraps a regular Supabase.js client with a Proxy, and
+ * createSupabaseProxyClient() wraps a regular Supabase.js client with a Proxy, and
  * intercepts its method calls so it can save information about the query being
  * generated before letting the original methods do their thing. It also adds a
  * new client method `getQueryMeta` that returns the object representation
@@ -20,15 +20,11 @@ const constants_1 = require("./constants");
  * under in your local cache, using a tool like React Query. Similarly, you could write an
  * abstraction function that receives a Supabase.js mutation and uses its returned `queryMeta`
  * to optimisticly update your cache with the new data, resulting in a snappy UI/UX. In fact, I
- * implemented this example as a separate package called `@supastruct/react-query`.
+ * implemented this example as a separate package called `@kaelan/supaquery`.
  */
-function supastructClientFactory(supabaseClient) {
-    return () => createSupastructClient(supabaseClient);
-}
-exports.supastructClientFactory = supastructClientFactory;
 /**
  * TODO: think about how to implement hook system for Supabase-js client.
- * For example, user can pass an object to createSupastructClient with callback methods:
+ * For example, user can pass an object to createSupabaseProxyClient with callback methods:
  * `onUpdate`, `onInsert`, `onUpsert`, `onSelect`, `onDelete` (and maybe `onError`,
  * `onSuccess`, `onSettled`?).. these methods would be called within the `then` method
  * (i.e. post-query execution), using the queryMeta to determine which ones to call, and
@@ -36,11 +32,13 @@ exports.supastructClientFactory = supastructClientFactory;
  * `todos`, if the update data includes `fieldX` with value `Y`, perform some side-effect
  * such as creating records in another table."
  */
-function createSupastructClient(supabaseClient) {
+function createSupabaseProxyClient(supabaseClient, _hooks) {
     const queryMeta = {
         from: "",
     };
+    const hooks = _hooks;
     const client = supabaseClient;
+    let proxyClient;
     const createProxy = (target) => {
         return new Proxy(target, {
             get(target, method, receiver) {
@@ -50,20 +48,42 @@ function createSupastructClient(supabaseClient) {
                 if (method === "getSupabaseClient") {
                     return () => client;
                 }
+                if (method === "getProxyClient") {
+                    return () => proxyClient;
+                }
                 // intercept the query execution's response to inject `queryMeta`
                 if (method === "then") {
                     // Intercept 'then' method
                     return (onfulfilled, onrejected) => {
                         return Reflect.get(target, method, receiver).call(target, (result) => {
+                            var _a, _b, _c, _d;
                             // Augment the result with queryMeta
-                            return onfulfilled(Object.assign(Object.assign({}, result), { queryMeta }));
+                            const queryResponse = Object.assign(Object.assign({}, result), { queryMeta });
+                            // run user-defined action hooks, if any exist for this query type
+                            const action = {
+                                update: (_a = hooks === null || hooks === void 0 ? void 0 : hooks.actions) === null || _a === void 0 ? void 0 : _a.onUpdate,
+                                insert: (_b = hooks === null || hooks === void 0 ? void 0 : hooks.actions) === null || _b === void 0 ? void 0 : _b.onInsert,
+                                upsert: (_c = hooks === null || hooks === void 0 ? void 0 : hooks.actions) === null || _c === void 0 ? void 0 : _c.onUpsert,
+                                delete: (_d = hooks === null || hooks === void 0 ? void 0 : hooks.actions) === null || _d === void 0 ? void 0 : _d.onDelete,
+                            }[queryMeta.mutation];
+                            if (action) {
+                                action({
+                                    data: queryResponse.data,
+                                    error: queryResponse.error,
+                                    queryMeta,
+                                });
+                            }
+                            return onfulfilled(queryResponse);
                         }, onrejected);
                     };
                 }
+                // handle all other methods:
                 return (...args) => {
+                    var _a, _b, _c;
                     /**
                      * 1. Record the Supabase.js method and arguments in queryMeta, with special handling for cases where duplicate filter methods are chained multiple times in one query
                      */
+                    let filteredArgs; // will get set by user-defined hooks, if any exist
                     const methodArgs = (args === null || args === void 0 ? void 0 : args.length) == 1 ? args[0] : (args === null || args === void 0 ? void 0 : args.length) == 0 ? null : args;
                     const isMutation = constants_1.mutationMethods.includes(method);
                     if (isMutation) {
@@ -71,9 +91,21 @@ function createSupastructClient(supabaseClient) {
                         if (method == "delete")
                             queryMeta.mutationOptions = methodArgs;
                         else {
-                            queryMeta.values = args[0];
+                            // 1. set QueryMeta
+                            const records = args[0];
+                            queryMeta.values = records;
                             queryMeta.mutationOptions =
                                 args && (args === null || args === void 0 ? void 0 : args.length) > 1 ? args[1] : {};
+                            // 2. apply filter hooks on records to mutate, if any were provided
+                            const filter = {
+                                update: (_a = hooks === null || hooks === void 0 ? void 0 : hooks.filters) === null || _a === void 0 ? void 0 : _a.recordForUpdate,
+                                insert: (_b = hooks === null || hooks === void 0 ? void 0 : hooks.filters) === null || _b === void 0 ? void 0 : _b.recordsForInsert,
+                                upsert: (_c = hooks === null || hooks === void 0 ? void 0 : hooks.filters) === null || _c === void 0 ? void 0 : _c.recordsForUpsert,
+                            }[method];
+                            if (filter) {
+                                const filteredRecords = filter(records);
+                                filteredArgs = [filteredRecords, queryMeta.mutationOptions];
+                            }
                         }
                     }
                     else {
@@ -127,7 +159,7 @@ function createSupastructClient(supabaseClient) {
                     /**
                      * 2. Call the original method
                      */
-                    const result = Reflect.get(target, method, receiver).apply(target, args);
+                    const result = Reflect.get(target, method, receiver).apply(target, filteredArgs !== null && filteredArgs !== void 0 ? filteredArgs : args);
                     /**
                      * 3. Return a new proxy wrapper when the current method in the chain returns a class instance
                      */
@@ -142,6 +174,7 @@ function createSupastructClient(supabaseClient) {
             },
         });
     };
-    return createProxy(supabaseClient);
+    proxyClient = createProxy(supabaseClient);
+    return proxyClient;
 }
-exports.createSupastructClient = createSupastructClient;
+exports.createSupabaseProxyClient = createSupabaseProxyClient;
