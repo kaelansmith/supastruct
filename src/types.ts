@@ -1,10 +1,51 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from "@supabase/supabase-js";
 import {
   PostgrestBuilder,
   PostgrestTransformBuilder,
   PostgrestFilterBuilder,
-  PostgrestQueryBuilder
-} from '@supabase/postgrest-js';
+  PostgrestQueryBuilder,
+  PostgrestResponseSuccess,
+  PostgrestResponseFailure,
+} from "@supabase/postgrest-js";
+
+export type FilterHookCallback<TValue = any, TArgs = undefined> = (
+  valueToFilter: TValue,
+  args?: TArgs
+) => TValue;
+
+export type ActionHookDefaultArgs = {
+  data: SupabaseRecord[] | null;
+  error: any;
+  queryMeta?: QueryMeta;
+};
+
+export type ActionHookCallback<TArgs = ActionHookDefaultArgs> = (
+  args: TArgs
+) => void;
+
+export type SupabaseClientHooks = {
+  filters?: SupabaseClientFilterHooks;
+  actions?: SupabaseClientActionHooks;
+};
+
+export type SupabaseClientFilterHooks = {
+  // transform records before mutations occur,
+  recordsForInsert?: FilterHookCallback<SupabaseRecord[]>;
+  recordsForUpsert?: FilterHookCallback<SupabaseRecord[]>;
+  recordForUpdate?: FilterHookCallback<SupabaseRecord>;
+  // TODO:
+  // queryResponse?: FilterHookCallback<
+  //   PostgrestResponseSuccess<SupabaseRecord>
+  // >;
+};
+
+export type SupabaseClientActionHooks = {
+  // run side-effects after mutations occur
+  onInsert?: ActionHookCallback;
+  onUpdate?: ActionHookCallback;
+  onUpsert?: ActionHookCallback;
+  onDelete?: ActionHookCallback;
+};
 
 /**
  ** === Supastruct-ify Supabase.js Types ==========================
@@ -13,10 +54,11 @@ import {
 export interface SupastructExtension {
   getQueryMeta: () => QueryMeta;
   getSupabaseClient: () => SupabaseClient;
+  getProxyClient: () => SupabaseProxyClient;
 }
 export type Supastructify<T> = T & SupastructExtension;
 
-export type SupastructClient = Supastructify<SupabaseClient>;
+export type SupabaseProxyClient = Supastructify<SupabaseClient>;
 export type SupastructBaseBuilder = Supastructify<PostgrestBuilder<any>>;
 export type SupastructTransformBuilder = Supastructify<
   PostgrestTransformBuilder<any, any, any>
@@ -28,8 +70,13 @@ export type SupastructFilterBuilder = Supastructify<
   PostgrestFilterBuilder<any, any, any>
 >;
 
-export type SupastructResult = PostgrestFilterBuilder<any, any, any>;
+export interface SupastructResultExtension {
+  queryMeta: QueryMeta;
+}
 
+export type SupastructResult<TData = any> =
+  | (PostgrestResponseSuccess<TData> & SupastructResultExtension)
+  | (PostgrestResponseFailure & SupastructResultExtension);
 
 /**
  ** === QueryMeta ==========================
@@ -42,7 +89,7 @@ export type QueryMeta =
   | DeleteQueryMeta;
 
 export type MutationCountOption = {
-  count?: 'exact' | 'planned' | 'estimated';
+  count?: "exact" | "planned" | "estimated";
 };
 
 export type CustomMutationVariables = {
@@ -52,7 +99,7 @@ export type CustomMutationVariables = {
 
 export type UpdateQueryMeta = BaseQueryMeta & UpdateVariables;
 export type UpdateVariables = {
-  mutation: 'update';
+  mutation: "update";
   values?: SupabaseRecord;
   mutationOptions?: MutationCountOption;
 };
@@ -62,7 +109,7 @@ export type InsertMutationOptions = MutationCountOption & {
   defaultToNull?: boolean;
 };
 export type InsertVariables = {
-  mutation: 'insert';
+  mutation: "insert";
   values?: SupabaseRecord | SupabaseRecord[];
   mutationOptions?: InsertMutationOptions;
 };
@@ -74,14 +121,14 @@ export type UpsertMutationOptions = MutationCountOption & {
   defaultToNull?: boolean;
 };
 export type UpsertVariables = {
-  mutation: 'upsert';
+  mutation: "upsert";
   values?: SupabaseRecord | SupabaseRecord[];
   mutationOptions?: UpsertMutationOptions;
 };
 
 export type DeleteQueryMeta = BaseQueryMeta & DeleteVariables;
 export type DeleteVariables = {
-  mutation: 'delete';
+  mutation: "delete";
   // values?: never;
   mutationOptions?: MutationCountOption;
 };
@@ -125,7 +172,7 @@ export type BaseQueryMeta = {
       | string
       | [
           columns: string,
-          options?: { head: boolean; count: 'exact' | 'planned' | 'estimated' }
+          options?: { head: boolean; count: "exact" | "planned" | "estimated" }
         ];
     order?:
       | string
@@ -160,7 +207,7 @@ export type BaseQueryMeta = {
       settings?: boolean;
       buffers?: boolean;
       wal?: boolean;
-      format?: 'json' | 'text';
+      format?: "json" | "text";
     };
     rollback?: true;
     returns?: true;
@@ -183,7 +230,7 @@ export type RangeFiltersMeta = SingleRangeFilterMeta | SingleRangeFilterMeta[];
 export type SingleTextSearchFilterMeta = [
   column: string,
   query: string,
-  options?: { config?: string; type?: 'plain' | 'phrase' | 'websearch' }
+  options?: { config?: string; type?: "plain" | "phrase" | "websearch" }
 ];
 export type TextSearchFiltersMeta =
   | SingleTextSearchFilterMeta
@@ -224,10 +271,8 @@ export type ContainsFilterMeta = FiltersMeta<
   string | unknown[] | Record<string, unknown>
 >;
 
-
 export type SupabaseRecord = Record<string, any>;
 export type RecordID = string | number;
 
-
 // export type DBOperations = 'update' | 'insert' | 'upsert' | 'delete' | 'select';
-export type MutationMethods = 'update' | 'insert' | 'upsert' | 'delete';
+export type MutationMethods = "update" | "insert" | "upsert" | "delete";
