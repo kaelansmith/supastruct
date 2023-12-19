@@ -78,15 +78,11 @@ So, the question is: in `runQuery`, how do we parse the Supabase query into obje
 ```diff js
 // in createClient.js:
 import { createClient } from '@supabase/supabase-js';
++ import { SupastructClient } from 'supastruct';
 - export const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-+ export const db = supastructClientFactory(createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY));
++ export const db = new SupastructClient(createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY));
 
-// somewhere in app:
-import { db } from "./createClient";
-const { data } = runQuery(
-- db.from('todos').select('*').eq('project', 1234).eq('status', 'in_progress')
-+ db().from('todos').select('*').eq('project', 1234).eq('status', 'in_progress') // difference is `db` is now a function
-);
+// use `db` exactly the same as before to create Supabase-js queries
 
 // in `runQuery.js`:
 export function runQuery(query) {
@@ -106,12 +102,13 @@ This is a simple example of how Supastruct is useful for writing abstractions ar
 
 ```js
 import { createClient } from "@supabase/supabase-js";
+import { SupastructClient } from "supastruct";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
-const db = supastructClientFactory(supabase);
+const db = new SupastructClient(supabase);
 
 const query = db()
   .from("todos")
@@ -133,7 +130,40 @@ const { data, error } = await supastruct(supabase, updateMeta);
 
 If I wanted to, I could have called `supastruct` above without awaiting it, which wouldn't execute the query and instead would return a Supabase query/filter builder that I could continue chaining methods onto.
 
-Having the ability to programmatically read/modify Supabase-js queries opens up a world of possibilities; for example, check out how [SupaQuery](https://github.com/kaelansmith/supaquery) uses it to integrate Supabase with React Query, providing a dead-simple API for "coupled mutations" that enable automatic, zero-config optimistic updates, resulting in a super snappy UI/UX -- all possible thanks to Supastruct.
+Having the ability to programmatically read/modify Supabase-js queries opens up a world of possibilities; for example, check out how [Supaquery](https://github.com/kaelansmith/supaquery) uses it to integrate Supabase with React Query, providing a dead-simple API for "coupled mutations" that enable automatic, zero-config optimistic updates, resulting in a super snappy UI/UX -- all possible thanks to Supastruct.
+
+# Query Hooks
+
+Supastruct also enables you to hook into the Supabase query execution lifecycle with various filter/action hooks, so you can programmatically modify records before they're mutated, and/or define side-effects/actions to run after a query is executed... all at a global level -- i.e. you define these hooks when instantiating your SupastructClient, and then any queries using that client will run those hooks at the appropriate time. Example:
+
+```js
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+const db = new SupastructClient(supabase, {
+  filters: {
+    recordForUpdate: (record) => {
+      // transform record here
+      return record;
+    }
+    recordsForInsert: (records) => {
+      // transform records here
+      return records;
+    }
+    recordsForUpsert: (records) => {
+      // transform records here
+      return records;
+    }
+  },
+  actions: {
+    onUpdate: (res) => ...,
+    onInsert: (res) => ...,
+    onUpsert: (res) => ...,
+    onDelete: (res) => ...
+  }
+});
+```
 
 # FAQ
 
