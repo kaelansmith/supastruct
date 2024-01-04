@@ -1,15 +1,10 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseProxyClient } from "./createSupabaseProxyClient";
-import type {
-  SupabaseClientHooks,
-  SupabaseProxyClient,
-  SupastructQueryBuilder,
-} from "./types";
+import type { SupabaseClientHooks, SupastructQueryBuilder } from "./types";
 
 export class SupastructClient {
   protected client: SupabaseClient;
   protected hooks: SupabaseClientHooks;
-  // protected proxyClient: SupabaseProxyClient;
 
   constructor(supabaseClient: SupabaseClient) {
     this.client = supabaseClient;
@@ -27,14 +22,8 @@ export class SupastructClient {
    */
   from(table: string): SupastructQueryBuilder {
     const proxyClient = createSupabaseProxyClient(this.client, this.hooks);
-    // this.proxyClient = proxyClient;
     return proxyClient.from(table) as SupastructQueryBuilder;
   }
-
-  /** Retrieve the original, unmodified Supabase client */
-  // protected getProxyClient(): SupabaseClient {
-  //   return this.proxyClient;
-  // }
 
   /** Retrieve the original, unmodified Supabase client */
   protected getSupabaseClient(): SupabaseClient {
