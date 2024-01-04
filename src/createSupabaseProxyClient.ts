@@ -48,7 +48,7 @@ export function createSupabaseProxyClient(
   supabaseClient: SupabaseClient,
   _hooks?: SupabaseClientHooks
 ): SupabaseProxyClient {
-  const queryMeta: QueryMeta = {
+  let queryMeta: QueryMeta = {
     from: "",
   };
 
@@ -64,6 +64,13 @@ export function createSupabaseProxyClient(
           return () => queryMeta;
         }
 
+        if (method === "addQueryMeta") {
+          return (...args: any[]) => {
+            const partialQueryMeta = args[0];
+            queryMeta = { ...queryMeta, ...partialQueryMeta };
+          };
+        }
+
         if (method === "getSupabaseClient") {
           return () => client;
         }
@@ -72,8 +79,12 @@ export function createSupabaseProxyClient(
           return () => proxyClient;
         }
 
-        // intercept the query execution's response to inject `queryMeta`
+        // intercept the query execution's response to inject `queryMeta` and run user-defined action hooks
         if (method === "then") {
+          const { beforeExecution, onError, onSuccess, onSettled } =
+            hooks?.actions[queryMeta.mutation ? "mutations" : "queries"] ?? {};
+          const beforeExecutionResult = beforeExecution?.({ queryMeta });
+
           // Intercept 'then' method
           return (onfulfilled: any, onrejected: any) => {
             return Reflect.get(target, method, receiver).call(
@@ -83,20 +94,37 @@ export function createSupabaseProxyClient(
                 const queryResponse = { ...result, queryMeta };
 
                 // run user-defined action hooks, if any exist for this query type
-                const action = {
-                  update: hooks?.actions?.onUpdate,
-                  insert: hooks?.actions?.onInsert,
-                  upsert: hooks?.actions?.onUpsert,
-                  delete: hooks?.actions?.onDelete,
-                }[queryMeta.mutation];
+                // const action = {
+                //   update: onUpdate, // TODO: perhaps use supastruct to retrieve doc before we run update mutation, so we can include its original data along with its updated data in this hook, so we can know which fields changed
+                //   insert: onInsert,
+                //   upsert: onUpsert,
+                //   delete: onDelete,
+                // }[queryMeta.mutation];
 
-                if (action) {
-                  action({
-                    data: queryResponse.data,
-                    error: queryResponse.error,
-                    queryMeta,
-                  });
-                }
+                // const actionHookArgs = {
+                //   data: queryResponse.data,
+                //   error: queryResponse.error,
+                //   queryMeta,
+                // };
+
+                const context = {
+                  beforeExecutionResult,
+                };
+
+                if (queryResponse.error)
+                  onError?.({ error: queryResponse.error, queryMeta, context });
+                else
+                  onSuccess?.({ data: queryResponse.data, queryMeta, context });
+
+                onSettled?.({
+                  data: queryResponse.data,
+                  error: queryResponse.error,
+                  queryMeta,
+                  context,
+                });
+
+                // if (action) action(actionHookArgs);
+                // if (onMutate) onMutate(actionHookArgs)
 
                 return onfulfilled(queryResponse);
               },
@@ -186,7 +214,7 @@ export function createSupabaseProxyClient(
           /**
            * 2. Call the original method
            */
-          const result = Reflect.get(target, method, receiver).apply(
+          const result = Reflect.get(target, method, receiver)?.apply(
             target,
             filteredArgs ?? args
           );

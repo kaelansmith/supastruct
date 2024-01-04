@@ -14,14 +14,25 @@ export type FilterHookCallback<TValue = any, TArgs = undefined> = (
 ) => TValue;
 
 export type ActionHookDefaultArgs = {
-  data: SupabaseRecord[] | null;
+  /** The full record data returned by Supabase after the DB mutation finishes */
+  data: SupabaseRecord | SupabaseRecord[] | null;
+  /** Error returned/caught by Supabase during DB mutation */
   error: any;
-  queryMeta?: QueryMeta;
+  /** The queryMeta representing the DB mutation that occured */
+  queryMeta: QueryMeta;
+  context: {
+    beforeExecutionResult: {
+      previousData?: SupabaseRecord | SupabaseRecord[];
+      [key: string]: any;
+    };
+    [key: string]: any;
+  };
 };
 
-export type ActionHookCallback<TArgs = ActionHookDefaultArgs> = (
-  args: TArgs
-) => void;
+export type ActionHookCallback<
+  TArgs = ActionHookDefaultArgs,
+  TResult = void
+> = (args: TArgs) => TResult;
 
 export type SupabaseClientHooks = {
   filters?: SupabaseClientFilterHooks;
@@ -39,12 +50,29 @@ export type SupabaseClientFilterHooks = {
   // >;
 };
 
+export type QueryLifecycleHooks = {
+  beforeExecution?: ActionHookCallback<
+    Pick<ActionHookDefaultArgs, "queryMeta">,
+    any
+  >;
+  onError?: ActionHookCallback<
+    Pick<ActionHookDefaultArgs, "error" | "queryMeta" | "context">
+  >;
+  onSuccess?: ActionHookCallback<
+    Pick<ActionHookDefaultArgs, "data" | "queryMeta" | "context">
+  >;
+  onSettled?: ActionHookCallback;
+};
+
 export type SupabaseClientActionHooks = {
   // run side-effects after mutations occur
-  onInsert?: ActionHookCallback;
-  onUpdate?: ActionHookCallback;
-  onUpsert?: ActionHookCallback;
-  onDelete?: ActionHookCallback;
+  mutations?: QueryLifecycleHooks;
+  queries?: QueryLifecycleHooks;
+  // onMutate?: ActionHookCallback;
+  // onInsert?: ActionHookCallback;
+  // onUpdate?: ActionHookCallback;
+  // onUpsert?: ActionHookCallback;
+  // onDelete?: ActionHookCallback;
 };
 
 /**
@@ -55,6 +83,7 @@ export interface SupastructExtension {
   getQueryMeta: () => QueryMeta;
   getSupabaseClient: () => SupabaseClient;
   getProxyClient: () => SupabaseProxyClient;
+  addQueryMeta: (queryMeta: Partial<QueryMeta>) => void;
 }
 export type Supastructify<T> = T & SupastructExtension;
 
