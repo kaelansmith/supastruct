@@ -12,6 +12,5 @@ export declare class SupastructClient {
      */
     from(table: string): SupastructQueryBuilder;
     /** Retrieve the original, unmodified Supabase client */
-    /** Retrieve the original, unmodified Supabase client */
     protected getSupabaseClient(): SupabaseClient;
 }

@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SupastructClient = void 0;
 const createSupabaseProxyClient_1 = require("./createSupabaseProxyClient");
 class SupastructClient {
-    // protected proxyClient: SupabaseProxyClient;
     constructor(supabaseClient) {
         this.client = supabaseClient;
     }
@@ -18,13 +17,8 @@ class SupastructClient {
      */
     from(table) {
         const proxyClient = (0, createSupabaseProxyClient_1.createSupabaseProxyClient)(this.client, this.hooks);
-        // this.proxyClient = proxyClient;
         return proxyClient.from(table);
     }
-    /** Retrieve the original, unmodified Supabase client */
-    // protected getProxyClient(): SupabaseClient {
-    //   return this.proxyClient;
-    // }
     /** Retrieve the original, unmodified Supabase client */
     getSupabaseClient() {
         return this.client;
