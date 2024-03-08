@@ -58,8 +58,6 @@ export function supastruct(
             );
           });
         } else {
-          // debugger;
-          // const methodArgs = Array.isArray(args) ? ...args : args;
           query = query[method]?.(...(Array.isArray(args) ? args : [args]));
         }
       });
@@ -74,7 +72,7 @@ export function supastruct(
          */
         if (args === true) query = query[method]?.();
         // when args == true, it means the method should be called but without any args
-        else query = query[method]?.(args);
+        else query = query[method]?.(...(Array.isArray(args) ? args : [args]));
       });
     }
 

@@ -48,8 +48,6 @@ function supastruct(client, queryMeta) {
                     });
                 }
                 else {
-                    // debugger;
-                    // const methodArgs = Array.isArray(args) ? ...args : args;
                     query = (_a = query[method]) === null || _a === void 0 ? void 0 : _a.call(query, ...(Array.isArray(args) ? args : [args]));
                 }
             });
@@ -66,7 +64,7 @@ function supastruct(client, queryMeta) {
                     query = (_a = query[method]) === null || _a === void 0 ? void 0 : _a.call(query);
                 // when args == true, it means the method should be called but without any args
                 else
-                    query = (_b = query[method]) === null || _b === void 0 ? void 0 : _b.call(query, args);
+                    query = (_b = query[method]) === null || _b === void 0 ? void 0 : _b.call(query, ...(Array.isArray(args) ? args : [args]));
             });
         }
         /**
