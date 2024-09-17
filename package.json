@@ -40,7 +40,7 @@
     "typescript": "^5.3.2"
   },
   "peerDependencies": {
-    "@supabase/supabase-js": ">= 2.7.1",
-    "@supabase/postgrest-js": ">= 1.1.x"
+    "@supabase/postgrest-js": ">= 1.1.x",
+    "@supabase/supabase-js": ">= 2.7.1"
   }
 }
